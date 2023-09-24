@@ -80,3 +80,44 @@ for image, mask in val_dataset.take(1):
 print(f"Unique values count: {len(np.unique((mask[0] * 255)))}")
 print("Unique values:")
 print(np.unique((mask[0] * 255)).astype(int))
+
+def basic_block(x_input, filters, stride=1, down_sample=None, activation=None):
+    """Creates a residual(identity) block with two 3*3 convolutions."""
+    residual = x_input
+
+    x = layers.Conv2D(filters, (3, 3), strides=stride, padding="same", use_bias=False)(x_input)
+    x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+    x = layers.Conv2D(filters, (3, 3), strides=(1, 1), padding="same", use_bias=False)(x)
+    x = layers.BatchNormalization()(x)
+
+    if down_sample is not None:
+        residual = down_sample
+    x = layers.Add()([x, residual])
+    if activation is not None:
+        x = layers.Activation(activation)(x)
+    return x
+
+def convolution_block(x_input, filters, dilation=1):
+    """Apply convolution + batch_normalization + relu layer."""
+    x = layers.Conv2D(filters, (3, 3), padding="same", dilation_rate=dilation)(x_input)
+    x = layers.BatchNormalization()(x)
+    return layers.Activation("relu")(x)
+
+def segmentation_head(x_input, out_classes, final_size):
+    """Map each decoder stage output to model output classes."""
+    x = layers.Conv2D(out_classes, kernel_size=(3, 3), padding="same")(x_input)
+    if final_size is not None:
+        x = layers.Resizing(final_size[0], final_size[1])(x)
+    return x
+
+def get_resnet_block(_resnet, block_num):
+    """Extract and return ResNet-34 block."""
+    resnet_layers = [3, 4, 6, 3] # ResNet-34 layer sizes at different block.
+    return keras.models.Model(
+        inputs=_resnet.get_layer(f"v2_stack_{block_num}_block1_1_conv").input,
+        outputs=_resnet.get_layer(
+            f"v2_stack_{block_num}_block{resnet_layers[block_num]}_add"
+        ).output,
+        name=f"resnet34_block{block_num + 1}",
+    )
