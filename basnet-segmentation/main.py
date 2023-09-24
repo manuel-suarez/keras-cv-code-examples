@@ -17,8 +17,8 @@ DATA_DIR = "/home/hasimoto/data/DUTS-TE"
 
 # Create dataset
 def load_paths(path, split_ratio):
-    images = sorted(glob(os.path.join(path, "DUTS-TE-Image/*")))[:140]
-    masks = sorted(glob(os.path.join(path, "DUTS-TE-Mask/*")))[:140]
+    images = sorted(glob(os.path.join(path, "DUTS-TE-Image/*")))
+    masks = sorted(glob(os.path.join(path, "DUTS-TE-Mask/*")))
     len_ = int(len(images) * split_ratio)
     return (images[:len_], masks[:len_]), (images[len_:], masks[len_:])
 
@@ -265,3 +265,12 @@ basnet_model.compile(
     metrics=[keras.metrics.MeanAbsoluteError(name="mae")]
 )
 basnet_model.fit(train_dataset, validation_data=val_dataset, epochs=1)
+
+def normalize_output(prediction):
+    max_value = np.max(prediction)
+    min_value = np.min(prediction)
+    return (prediction - min_value) / (max_value - min_value)
+
+for image, mask in val_dataset.take(1):
+    pred_mask = basnet_model.predict(image)
+    display("figure02.png", [image[0], mask[0], normalize_output(pred_mask[0][0])])
