@@ -264,7 +264,7 @@ basnet_model.compile(
     optimizer=optimizer,
     metrics=[keras.metrics.MeanAbsoluteError(name="mae")]
 )
-basnet_model.fit(train_dataset, validation_data=val_dataset, epochs=1)
+history = basnet_model.fit(train_dataset, validation_data=val_dataset, epochs=5)
 
 def normalize_output(prediction):
     max_value = np.max(prediction)
@@ -274,3 +274,8 @@ def normalize_output(prediction):
 for image, mask in val_dataset.take(1):
     pred_mask = basnet_model.predict(image)
     display("figure02.png", [image[0], mask[0], normalize_output(pred_mask[0][0])])
+
+import json
+history_dict = history.history
+# Save
+json.dump(history_dict, open("metrics.csv", "w"))
