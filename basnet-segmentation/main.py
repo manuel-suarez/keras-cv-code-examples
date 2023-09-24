@@ -217,3 +217,38 @@ def basnet(input_shape, out_classes):
     output.extend(predict_model.output)
     output = [layers.Activation("sigmoid")(_) for _ in output] # Activations
     return keras.models.Model(inputs=[predict_model.input], outputs=output)
+
+class BasnetLoss(keras.losses.Loss):
+    """BASNet hybrid loss."""
+    def __init__(self, **kwargs):
+        super().__init__(name="basnet_loss", **kwargs)
+        self.smooth = 1.0e-9
+
+        # Binary Cross Entropy loss.
+        self.cross_entropy_loss = keras.losses.BinaryCrossentropy()
+        # Structural Similarity Index value.
+        self.ssim_value = tf.image.ssim
+        # Jaccard / IoU loss.
+        self.iou_value = self.calculate_iou
+
+    def calculate_iou(self, y_true, y_pred):
+        """Calculate intersection over union (IoU) between images."""
+        intersection = backend.sum(backend.abs(y_true * y_pred), axis=[1, 2, 3])
+        union = backend.sum(y_true, [1, 2, 3]) + backend.sum(y_pred, [1, 2, 3])
+        union = union - intersection
+        return backend.mean(
+            (intersection + self.smooth) / (union + self.smooth), axis=0
+        )
+
+    def call(self, y_true, y_pred):
+        cross_entropy_loss = self.cross_entropy_loss(y_true, y_pred)
+
+        ssim_value = self.ssim_value(y_true, y_pred, max_val=1)
+        ssim_loss = backend.mean(1 - ssim_value + self.smooth, axis=0)
+
+        iou_value = self.iou_value(y_true, y_pred)
+        iou_loss = 1 - iou_value
+
+        # Add all three losses.
+        return cross_entropy_loss + ssim_loss + iou_loss
+
