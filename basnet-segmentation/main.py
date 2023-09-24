@@ -173,3 +173,33 @@ def basnet_predict(input_shape, out_classes):
         for decoder_block in decoder_blocks
     ]
     return keras.models.Model(inputs=[x_input], outputs=decoder_blocks)
+
+def basnet_rrm(base_model, out_classes):
+    """BASNet Residual Refinement Module(RRM) module, output fine label map."""
+    num_stages = 4
+    filters = 64
+    x_input = base_model.output[0]
+
+    # --------------- Encoder --------------
+    x = layers.Conv2D(filters, kernel_size=(3, 3), padding="same")(x_input)
+    encoder_blocks = []
+    for _ in range(num_stages):
+        x = convolution_block(x, filters=filters)
+        encoder_blocks.append(x)
+        x = layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2))(x)
+
+    # --------------- Bridge ---------------
+    x = convolution_block(x, filters=filters)
+
+    # -------------- Decoder ----------------
+    for i in reversed(range(num_stages)):
+        shape = keras.backend.int_shape(x)
+        x = layers.Resizing(shape[1] * 2, shape[2] * 2)(x)
+        x = layers.concatenate([encoder_blocks[i], x], axis=-1)
+        x = convolution_block(x, filters=filters)
+    x = segmentation_head(x, out_classes, None) # Segmentation head
+
+    # ------------------- refined = coarse + residual
+    x = layers.Add()([x_input, x]) # Add prediction + refinement output
+
+    return keras.models.Model(inputs=[base_model.input], outputs=[x])
