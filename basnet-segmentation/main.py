@@ -256,3 +256,12 @@ basnet_model = basnet(
     input_shape=[IMAGE_SIZE, IMAGE_SIZE, 3], out_classes=OUT_CLASSES
 ) # Create model.
 basnet_model.summary()
+
+optimizer = keras.optimizers.Adam(learning_rate=1e-4, epsilon=1e-8)
+# Compile model
+basnet_model.compile(
+    loss=BasnetLoss(),
+    optimizer=optimizer,
+    metrics=[keras.metrics.MeanAbsoluteError(name="mae")]
+)
+basnet_model.fit(train_dataset, validation_data=val_dataset, epochs=1)
