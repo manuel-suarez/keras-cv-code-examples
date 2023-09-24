@@ -17,8 +17,8 @@ DATA_DIR = "/home/hasimoto/data/DUTS-TE"
 
 # Create dataset
 def load_paths(path, split_ratio):
-    images = sorted(glob(os.path.join(path, "DUTS-TE-Image/*")))
-    masks = sorted(glob(os.path.join(path, "DUTS-TE-Mask/*")))
+    images = sorted(glob(os.path.join(path, "DUTS-TE-Image/*")))[:30]
+    masks = sorted(glob(os.path.join(path, "DUTS-TE-Mask/*")))[:30]
     len_ = int(len(images) * split_ratio)
     return (images[:len_], masks[:len_]), (images[len_:], masks[len_:])
 
