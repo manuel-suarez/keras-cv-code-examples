@@ -121,3 +121,55 @@ def get_resnet_block(_resnet, block_num):
         ).output,
         name=f"resnet34_block{block_num + 1}",
     )
+
+def basnet_predict(input_shape, out_classes):
+    """BASNet Prediction Module, it outputs coarse label map."""
+    filters = 64
+    num_stages = 6
+
+    x_input = layers.Input(input_shape)
+
+    # ------------------Encoder------------------
+    x = layers.Conv2D(filters, kernel_size=(3, 3), padding="same")(x_input)
+    resnet = keras_cv.models.ResNet34Backbone(
+        include_rescaling=False,
+    )
+    encoder_blocks = []
+    for i in range(num_stages):
+        if i < 4: # First four stages are adopted from ResNet-34 blocks.
+            x = get_resnet_block(resnet, i)(x)
+            encoder_blocks.append(x)
+            x = layers.Activation("relu")(x)
+        else: # Last 2 stages consist of three basic resnet blocks.
+            x = layers.MaxPool2D(pool_size=(2, 2), strides=(2, 2))(x)
+            x = basic_block(x, filters=filters * 8, activation="relu")
+            x = basic_block(x, filters=filters * 8, activation="relu")
+            x = basic_block(x, filters=filters * 8, activation="relu")
+            encoder_blocks.append(x)
+
+    # ----------------Bridge----------------
+    x = convolution_block(x, filters=filters * 8, dilation=2)
+    x = convolution_block(x, filters=filters * 8, dilation=2)
+    x = convolution_block(x, filters=filters * 8, dilation=2)
+    encoder_blocks.append(x)
+
+    # ---------------Decoder----------------
+    decoder_blocks = []
+    for i in reversed(range(num_stages)):
+        if i != (num_stages - 1): # Except first, scale other decoder stages.
+            shape = keras.backend.int_shape(x)
+            x = layers.Resizing(shape[1] * 2, shape[2] * 2)(x)
+        x = layers.concatenate([encoder_blocks[i], x], axis=-1)
+        x = convolution_block(x, filters=filters * 8)
+        x = convolution_block(x, filters=filters * 8)
+        x = convolution_block(x, filters=filters * 8)
+        decoder_blocks.append(x)
+    decoder_blocks.reverse() # Change order from last to first decoder stage.
+    decoder_blocks.append(encoder_blocks[-1]) # Copy bridge to decoder.
+
+    # ------------Side Outputs--------------
+    decoder_blocks = [
+        segmentation_head(decoder_block, out_classes, input_shape[:2])
+        for decoder_block in decoder_blocks
+    ]
+    return keras.models.Model(inputs=[x_input], outputs=decoder_blocks)
