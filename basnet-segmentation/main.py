@@ -252,3 +252,7 @@ class BasnetLoss(keras.losses.Loss):
         # Add all three losses.
         return cross_entropy_loss + ssim_loss + iou_loss
 
+basnet_model = basnet(
+    input_shape=[IMAGE_SIZE, IMAGE_SIZE, 3], out_classes=OUT_CLASSES
+) # Create model.
+basnet_model.summary()
