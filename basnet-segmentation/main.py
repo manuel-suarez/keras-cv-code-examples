@@ -76,3 +76,7 @@ def display(figname, display_list):
 
 for image, mask in val_dataset.take(1):
     display("figure01.png", [image[0], mask[0]])
+
+print(f"Unique values count: {len(np.unique((mask[0] * 255)))}")
+print("Unique values:")
+print(np.unique((mask[0] * 255)).astype(int))
