@@ -61,3 +61,18 @@ val_dataset = load_dataset(
 )
 print(f"Train Dataset: {train_dataset}")
 print(f"Validation Dataset: {val_dataset}")
+
+# Visualize Data
+def display(figname, display_list):
+    title = ["Input Image", "True Mask", "Predicted Mask"]
+    for i in range(len(display_list)):
+        plt.subplot(1, len(display_list), i + 1)
+        plt.title(title[i])
+        plt.imshow(keras.utils.array_to_img(display_list[i]), cmap="gray")
+        plt.axis("off")
+    plt.show()
+    plt.savefig(figname)
+    plt.close()
+
+for image, mask in val_dataset.take(1):
+    display("figure01.png", [image[0], mask[0]])
