@@ -203,3 +203,17 @@ def basnet_rrm(base_model, out_classes):
     x = layers.Add()([x_input, x]) # Add prediction + refinement output
 
     return keras.models.Model(inputs=[base_model.input], outputs=[x])
+
+def basnet(input_shape, out_classes):
+    """BASNet, it's a combination of two modules
+    Prediciton Module and Residual Refinement Module (RRM)."""
+
+    # Prediction model.
+    predict_model = basnet_predict(input_shape, out_classes)
+    # Refinement model
+    refine_model = basnet_rrm(predict_model, out_classes)
+
+    output = [refine_model.output] # Combine outputs.
+    output.extend(predict_model.output)
+    output = [layers.Activation("sigmoid")(_) for _ in output] # Activations
+    return keras.models.Model(inputs=[predict_model.input], outputs=output)
